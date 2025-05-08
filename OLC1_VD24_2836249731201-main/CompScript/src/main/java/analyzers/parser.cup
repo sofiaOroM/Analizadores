@@ -1,0 +1,109 @@
+// ------------ 1. Encabezado del archivo CUP ------------
+package analyzers;
+
+import java_cup.runtime.Symbol;
+import java.util.List;
+import java.util.ArrayList;
+import abstracto.Instruction;
+import instrucciones.*;
+import expresiones.*;
+import java.io.FileWriter;
+import java.io.IOException;
+
+// ------------ 2. Código del parser ------------
+parser code {:
+    public static List<Instruction> instrucciones = new ArrayList<>();
+    public static FileWriter writer;
+
+    public static void crearArchivo(String path) {
+        try {
+            writer = new FileWriter(path);
+        } catch (IOException e) {
+            System.out.println("Error creando archivo: " + e.getMessage());
+        }
+    }
+
+    public static void escribir(String linea) {
+        try {
+            writer.write(linea + "\n");
+        } catch (IOException e) {
+            System.out.println("Error escribiendo: " + e.getMessage());
+        }
+    }
+
+    public static void cerrarArchivo() {
+        try {
+            if (writer != null) writer.close();
+        } catch (IOException e) {
+            System.out.println("Error cerrando archivo: " + e.getMessage());
+        }
+    }
+:};
+
+// ------------ 3. Terminales (Tokens) ------------
+terminal PRINT, END, REPEAT, INIT, IF, TRUE, FALSE, THEN;
+terminal MAS, MENOS, POR, DIV, POT, ASIGNACION;
+terminal String LITERAL, IDENTIFICADOR;
+terminal Integer ENTERO;
+terminal ParO, ParC;
+
+// ------------ 4. Precedencia ------------
+precedence left MAS, MENOS;
+precedence left POR, DIV;
+precedence right POT;
+
+// ------------ 5. No terminales ------------
+non terminal INICIO;
+non terminal List<Instruction> INSTRUCCIONES;
+non terminal Instruction INSTRUCCION, PRINTINSTR, ASIGNACIONINSTR, REPEATINSTR, IFINSTR;
+non terminal List<Instruction> CUERPO;
+non terminal Boolean CONDICION;
+non terminal Object EXPRESION;
+
+// ------------ 6. Regla inicial ------------
+start with INICIO;
+
+// ------------ 7. Producciones ------------
+INICIO ::= INSTRUCCIONES:e
+          {: parser.cerrarArchivo(); parser.instrucciones = e; RESULT = e; :;};
+
+INSTRUCCIONES ::= INSTRUCCIONES:e INSTRUCCION:i
+                {: e.add(i); RESULT = e; :;}
+                | INSTRUCCION:i
+                {: List<Instruction> lista = new ArrayList<>(); lista.add(i); RESULT = lista; :;};
+
+INSTRUCCION ::= PRINTINSTR {: RESULT = $1; :;}
+              | REPEATINSTR {: RESULT = $1; :;}
+              | IFINSTR {: RESULT = $1; :;}
+              | ASIGNACIONINSTR {: RESULT = $1; :;};
+
+PRINTINSTR ::= PRINT EXPRESION:e END
+              {: RESULT = new Print(e); parser.escribir(e.toString()); :;};
+
+REPEATINSTR ::= REPEAT EXPRESION:e INIT CUERPO:c END
+              {: RESULT = new Repeat(e, c); :;};
+
+IFINSTR ::= IF CONDICION:c THEN PRINTINSTR:p END
+           {: RESULT = new If(c, p); :;};
+
+ASIGNACIONINSTR ::= IDENTIFICADOR:id ASIGNACION EXPRESION:e END
+                   {: RESULT = new Asignacion(id, e); :;};
+
+CUERPO ::= PRINTINSTR:p
+         {: List<Instruction> list = new ArrayList<>(); list.add(p); RESULT = list; :;}
+         | CUERPO:c PRINTINSTR:p
+         {: c.add(p); RESULT = c; :;};
+
+CONDICION ::= TRUE {: RESULT = true; :;}
+            | FALSE {: RESULT = false; :;};
+
+// ------------ 8. Expresiones aritméticas ------------
+EXPRESION ::= EXPRESION MAS EXPRESION {: RESULT = new Suma($1, $3); :;}
+            | EXPRESION MENOS EXPRESION {: RESULT = new Resta($1, $3); :;}
+            | EXPRESION POR EXPRESION {: RESULT = new Multiplicacion($1, $3); :;}
+            | EXPRESION DIV EXPRESION {: RESULT = new Division($1, $3); :;}
+            | EXPRESION POT EXPRESION {: RESULT = new Potencia($1, $3); :;}
+            | ParO EXPRESION ParC {: RESULT = $2; :;}
+            | ENTERO {: RESULT = new Literal($1); :;}
+            | IDENTIFICADOR {: RESULT = new Identificador($1); :;}
+            | LITERAL {: RESULT = new Literal($1); :;};
