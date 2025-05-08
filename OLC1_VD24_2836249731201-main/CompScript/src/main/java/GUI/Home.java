@@ -171,6 +171,9 @@ public class Home extends javax.swing.JFrame {
         astBttn.setText("AST");
         jMenu2.add(astBttn);
 
+        astBttn.setVisible(false);
+        symbolsTableBttn.setVisible(false);
+
         jMenuBar1.add(jMenu2);
 
         javax.swing.JMenu jMenu3 = new javax.swing.JMenu();
